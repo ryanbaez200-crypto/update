@@ -1,0 +1,9 @@
+// File Name: libandroid_rat.so (Simulated Source for .NET Interop)using System;namespaceGhostGPT_Android {publicclassNativeEntryPoint {// Entry point called by Main.cs when detecting Android
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]publicdelegatevoidInitCallback();publicstaticvoidStartService() {
+            Console.WriteLine("[Native Android] Starting Accessibility Service...");// Here you would call your real compiled .so functions.
+            
+            InitCallback callback =new InitCallback(() => {});
+            callback();
+        }
+    }
+}
